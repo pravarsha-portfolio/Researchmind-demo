@@ -1,0 +1,880 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Silent Churn Console</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --paper:#faf7f1;
+  --surface:#ffffff;
+  --surface-2:#f2ede3;
+  --ink:#232420;
+  --ink-soft:#5c5c52;
+  --ink-faint:#8c8a7c;
+  --line:#e4ddd0;
+  --line-soft:#ece6d9;
+  --brand:#3d4b3e;
+  --brand-deep:#26302a;
+  --brand-pale:#e3e9dd;
+  --accent:#bd6a44;
+  --accent-deep:#a3552f;
+  --accent-pale:#f4dfd0;
+  --risk-high:#a8402a;
+  --risk-high-bg:#fbe4dc;
+  --risk-med:#b5791f;
+  --risk-med-bg:#faedd3;
+  --risk-low:#3f7a56;
+  --risk-low-bg:#e1efe4;
+  --auto-bg:#e1efe4;
+  --auto-fg:#2f6b47;
+  --review-bg:#faedd3;
+  --review-fg:#9a5f14;
+  --shadow: 0 1px 2px rgba(35,36,32,.04), 0 8px 24px -12px rgba(35,36,32,.18);
+  --focus: #2f6fed;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#171814;
+    --surface:#242621;
+    --surface-2:#2d2f29;
+    --ink:#f3efe4;
+    --ink-soft:#c7c2b2;
+    --ink-faint:#93907f;
+    --line:#41443a;
+    --line-soft:#34362e;
+    --brand:#a9c6a5;
+    --brand-pale:#2c3527;
+    --accent:#e79b6e;
+    --accent-deep:#f2b892;
+    --accent-pale:#3d2e22;
+    --risk-high:#ef8b6f;
+    --risk-high-bg:#402720;
+    --risk-med:#e7b458;
+    --risk-med-bg:#3c2f16;
+    --risk-low:#83cc9a;
+    --risk-low-bg:#1e3324;
+    --auto-bg:#1e3324;
+    --auto-fg:#8fe0a8;
+    --review-bg:#3c2f16;
+    --review-fg:#efbd6d;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#171814;
+  --surface:#242621;
+  --surface-2:#2d2f29;
+  --ink:#f3efe4;
+  --ink-soft:#c7c2b2;
+  --ink-faint:#93907f;
+  --line:#41443a;
+  --line-soft:#34362e;
+  --brand:#a9c6a5;
+  --brand-pale:#2c3527;
+  --accent:#e79b6e;
+  --accent-deep:#f2b892;
+  --accent-pale:#3d2e22;
+  --risk-high:#ef8b6f;
+  --risk-high-bg:#402720;
+  --risk-med:#e7b458;
+  --risk-med-bg:#3c2f16;
+  --risk-low:#83cc9a;
+  --risk-low-bg:#1e3324;
+  --auto-bg:#1e3324;
+  --auto-fg:#8fe0a8;
+  --review-bg:#3c2f16;
+  --review-fg:#efbd6d;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+/* --brand-deep is deliberately NOT redefined for dark mode: the sidebar and the
+   simulator result card are a fixed dark brand surface in both themes, like a
+   persistent dark rail. It always pairs with light text, by design. */
+
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; background:var(--paper); color:var(--ink); }
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  font-size:13.5px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{ font-family:'Fraunces',Georgia,serif; margin:0; text-wrap:balance; color:var(--ink); }
+.mono{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums; }
+a{ color:inherit; }
+button{ font-family:inherit; cursor:pointer; }
+:focus-visible{ outline:2px solid var(--focus); outline-offset:2px; border-radius:4px; }
+@media (prefers-reduced-motion: reduce){ *{ animation-duration:0.01ms !important; transition-duration:0.01ms !important; } }
+
+/* ============ LAYOUT ============ */
+.app{ display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+.sidebar{
+  background:var(--brand-deep); color:#eef2ea; padding:22px 18px;
+  display:flex; flex-direction:column; gap:22px; position:sticky; top:0; height:100vh;
+}
+.brand{ display:flex; flex-direction:column; gap:4px; }
+.brand .mark{ width:30px; height:30px; border-radius:8px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:700; color:#241005; font-size:15px; margin-bottom:6px;}
+.brand .name{ font-family:'Fraunces',serif; font-weight:600; font-size:16.5px; line-height:1.2; color:#fff; }
+.brand .tag{ font-size:10.5px; color:#b9c6b3; letter-spacing:.3px; }
+
+.nav{ display:flex; flex-direction:column; gap:2px; }
+.nav button{
+  all:unset; cursor:pointer; padding:9px 11px; border-radius:7px; font-size:12.6px; font-weight:600;
+  color:#cdd8c6; display:flex; align-items:center; gap:9px; letter-spacing:.1px;
+}
+.nav button .dot{ width:6px; height:6px; border-radius:50%; background:transparent; flex:none; }
+.nav button:hover{ background:rgba(255,255,255,.06); color:#fff; }
+.nav button.active{ background:var(--accent); color:#2a1206; }
+.nav button.active .dot{ background:#2a1206; }
+
+.sidebar-foot{ margin-top:auto; font-size:10.8px; color:#8fa088; line-height:1.5; border-top:1px solid rgba(255,255,255,.12); padding-top:14px; }
+.sidebar-foot b{ color:#dbe4d5; display:block; margin-bottom:3px; font-weight:700;}
+
+main{ padding:26px 32px 60px 32px; max-width:1180px; }
+.view{ display:flex; flex-direction:column; gap:22px; }
+
+.pagehead{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; }
+.pagehead h1{ font-size:24px; font-weight:600; }
+.pagehead p{ margin:5px 0 0 0; color:var(--ink-soft); font-size:13px; max-width:52ch; }
+.badge-live{ display:inline-flex; align-items:center; gap:6px; font-size:10.5px; font-weight:700; color:var(--brand); background:var(--brand-pale); padding:5px 10px; border-radius:20px; letter-spacing:.3px; text-transform:uppercase; }
+.badge-live i{ width:6px; height:6px; border-radius:50%; background:var(--risk-low); display:block; }
+
+/* stat tiles */
+.stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.stat-tile{ background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+.stat-tile .v{ font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; }
+.stat-tile .l{ font-size:11px; color:var(--ink-soft); margin-top:3px; }
+.stat-tile.warn .v{ color:var(--risk-high); }
+.stat-tile.ok .v{ color:var(--risk-low); }
+
+/* table */
+.tablewrap{ overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); }
+table{ width:100%; border-collapse:collapse; min-width:760px; }
+thead th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-faint); font-weight:700; padding:12px 14px; border-bottom:1px solid var(--line); background:var(--surface-2); position:sticky; top:0; }
+tbody td{ padding:11px 14px; border-bottom:1px solid var(--line-soft); font-size:13px; vertical-align:middle; }
+tbody tr{ cursor:pointer; transition:background .1s; }
+tbody tr:hover{ background:var(--surface-2); }
+tbody tr:last-child td{ border-bottom:none; }
+tbody tr.selected{ background:var(--accent-pale); }
+.acct-name{ font-weight:700; color:var(--ink); }
+.acct-sub{ font-size:11px; color:var(--ink-faint); margin-top:1px;}
+
+.row-edit{
+  all:unset; cursor:pointer; font-size:11px; font-weight:700; color:var(--ink-faint);
+  border:1px solid var(--line); border-radius:6px; padding:4px 10px;
+}
+.row-edit:hover{ color:var(--ink); border-color:var(--ink-faint); background:var(--surface-2); }
+
+.ef-text{
+  width:100%; font-family:'Inter',sans-serif; font-size:13px; color:var(--ink);
+  background:var(--surface); border:1.5px solid var(--line); border-radius:7px; padding:8px 10px;
+}
+.ef-text:focus{ border-color:var(--accent); }
+
+.pill{ display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:20px; font-size:10.8px; font-weight:700; white-space:nowrap; border:1px solid transparent; }
+.pill.high{ background:var(--risk-high-bg); color:var(--risk-high); }
+.pill.med{ background:var(--risk-med-bg); color:var(--risk-med); }
+.pill.low{ background:var(--risk-low-bg); color:var(--risk-low); }
+.pill.auto{ background:var(--auto-bg); color:var(--auto-fg); }
+.pill.review{ background:var(--review-bg); color:var(--review-fg); }
+.pill.silent{ background:var(--accent-pale); color:var(--accent-deep); }
+.pill.ghost{ background:var(--surface); color:var(--ink-soft); border-color:var(--line); }
+
+.score-cell{ display:flex; align-items:center; gap:9px; }
+.score-cell .n{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:14px; width:26px; text-align:right; }
+.score-track{ width:64px; height:6px; border-radius:4px; background:var(--surface-2); overflow:hidden; }
+.score-fill{ display:block; height:100%; border-radius:4px; }
+
+/* detail panel */
+.overlay{ position:fixed; inset:0; background:rgba(20,20,16,.28); z-index:20; }
+.detail-panel{
+  position:fixed; top:0; right:0; height:100vh; width:420px; max-width:92vw;
+  background:var(--surface); border-left:1px solid var(--line); box-shadow:-16px 0 40px -20px rgba(0,0,0,.35);
+  z-index:21; display:flex; flex-direction:column; transform:translateX(0); animation:slidein .18s ease-out;
+}
+@keyframes slidein{ from{ transform:translateX(24px); opacity:.6; } to{ transform:translateX(0); opacity:1; } }
+.dp-head{ padding:18px 20px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.dp-head h2{ font-size:18px; }
+.dp-head .close{ all:unset; cursor:pointer; color:var(--ink-faint); font-size:19px; padding:4px 8px; border-radius:6px; }
+.dp-head .close:hover{ background:var(--surface-2); color:var(--ink); }
+.dp-body{ padding:18px 20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:16px; }
+.dp-score{ display:flex; align-items:center; gap:14px; }
+.dp-score .ring{ position:relative; width:64px; height:64px; flex:none; }
+.dp-score .num{ font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:15px; }
+.dp-score .gatepill{ margin-top:4px; }
+
+.dp-section-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-faint); font-weight:700; }
+.sig-list{ list-style:none; margin:6px 0 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.sig-list li{ display:flex; gap:9px; font-size:12.6px; background:var(--surface-2); border-radius:8px; padding:9px 10px; line-height:1.45; }
+.sig-list li .w{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--ink-faint); flex:none; padding-top:1px; }
+
+.spark-wrap{ background:var(--surface-2); border-radius:8px; padding:10px 12px; }
+.spark-wrap .cap{ font-size:10.5px; color:var(--ink-faint); margin-top:5px; }
+
+.suggest-box{ background:var(--brand-pale); border-radius:8px; padding:11px 13px; }
+.suggest-box .lbl{ font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--brand); font-weight:800; margin-bottom:4px; }
+.suggest-box p{ margin:0; font-size:12.8px; color:var(--ink); }
+
+.gate-note{ font-size:11.5px; color:var(--ink-soft); background:var(--surface-2); border-radius:8px; padding:9px 11px; }
+
+.dp-actions{ display:flex; gap:8px; padding:16px 20px; border-top:1px solid var(--line); }
+.btn{ border:1.5px solid transparent; border-radius:8px; padding:10px 14px; font-size:12.8px; font-weight:700; flex:1; text-align:center; transition:filter .1s, background .1s; }
+.btn.primary{ background:var(--accent-deep); color:#fff; box-shadow:var(--shadow); }
+.btn.primary:hover{ filter:brightness(1.08); }
+.btn.ghost{ background:var(--surface); color:var(--ink); border-color:var(--line); }
+.btn.ghost:hover{ background:var(--surface-2); border-color:var(--ink-faint); }
+.btn.danger{ background:var(--surface); color:var(--risk-high); border-color:var(--risk-high-bg); }
+.btn.danger:hover{ background:var(--risk-high-bg); }
+.btn.done{ background:var(--risk-low-bg); color:var(--risk-low); border-color:var(--risk-low-bg); flex:none; padding:10px 16px; }
+
+/* simulator */
+.sim-grid{ display:grid; grid-template-columns:1fr 380px; gap:20px; align-items:start; }
+.sim-card{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:20px 22px; box-shadow:var(--shadow); }
+.slider-row{ margin-bottom:18px; }
+.slider-row:last-child{ margin-bottom:0; }
+.slider-row .top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px; }
+.slider-row label{ font-size:12.6px; font-weight:700; color:var(--ink); }
+.slider-row .val{ font-family:'IBM Plex Mono',monospace; font-size:12.6px; color:var(--accent-deep); font-weight:600; }
+input[type=range]{ width:100%; accent-color:var(--accent); height:5px; }
+.toggle-row{ display:flex; align-items:center; justify-content:space-between; padding-top:6px; }
+.toggle-row label{ font-size:12.6px; font-weight:700; }
+.switch{ position:relative; width:38px; height:21px; flex:none; }
+.switch input{ opacity:0; width:100%; height:100%; margin:0; position:absolute; cursor:pointer; z-index:1; }
+.switch .track{ position:absolute; inset:0; background:var(--surface); border:1.5px solid var(--ink-faint); border-radius:20px; transition:background .15s, border-color .15s; pointer-events:none; }
+.switch .knob{ position:absolute; top:2px; left:2px; width:15px; height:15px; border-radius:50%; background:var(--ink-faint); transition:transform .15s, background .15s; pointer-events:none; }
+.switch input:checked + .track{ background:var(--accent-deep); border-color:var(--accent-deep); }
+.switch input:checked + .track + .knob{ transform:translateX(17px); background:#fff; }
+
+.result-card{ background:var(--brand-deep); color:#eef2ea; border-radius:12px; padding:20px 22px; position:sticky; top:26px; }
+.result-card .rlabel{ font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:#b9c6b3; font-weight:700; }
+.result-card .rscore{ font-family:'IBM Plex Mono',monospace; font-size:44px; font-weight:700; line-height:1; margin:6px 0 3px 0; }
+.result-card .rpills{ display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+.result-card .sig-list li{ background:rgba(255,255,255,.08); color:#eef2ea; }
+.result-card .sig-list li .w{ color:#9fb097; }
+.result-card .suggest-box{ background:rgba(255,255,255,.1); }
+.result-card .suggest-box .lbl{ color:var(--accent-deep); }
+.result-card .suggest-box p{ color:#eef2ea; }
+
+/* model performance */
+.metric-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.metric-card{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px 18px; box-shadow:var(--shadow); }
+.metric-card .v{ font-family:'IBM Plex Mono',monospace; font-size:28px; font-weight:700; }
+.metric-card .l{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
+.metric-card .d{ font-size:11px; color:var(--ink-faint); margin-top:6px; line-height:1.4; }
+
+.bars{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 20px; box-shadow:var(--shadow); }
+.bar-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.bar-row:last-child{ margin-bottom:0; }
+.bar-row .lbl{ width:90px; flex:none; font-size:11.5px; color:var(--ink-soft); font-weight:600; }
+.bar-row .track{ flex:1; background:var(--surface-2); border-radius:4px; height:16px; overflow:hidden; }
+.bar-row .fill{ height:100%; display:flex; align-items:center; }
+.bar-row .n{ width:34px; flex:none; text-align:right; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; }
+
+.callout{ background:var(--accent-pale); border-radius:10px; padding:14px 16px; font-size:12.6px; line-height:1.55; color:var(--ink); }
+.callout b{ color:var(--accent-deep); }
+
+.foot-disclaimer{ font-size:11px; color:var(--ink-faint); border-top:1px solid var(--line); padding-top:14px; margin-top:6px; line-height:1.5; }
+
+[hidden]{ display:none !important; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">SC</div>
+      <div class="name">Silent Churn Console</div>
+      <div class="tag">Prototype build, synthetic portfolio</div>
+    </div>
+    <nav class="nav">
+      <button class="active" data-view="portfolio"><span class="dot"></span>Portfolio</button>
+      <button data-view="simulator"><span class="dot"></span>Simulator</button>
+      <button data-view="model"><span class="dot"></span>Model performance</button>
+    </nav>
+    <div class="sidebar-foot">
+      <b>What this is</b>
+      A working prototype of the risk model from "The Silent Churn Layer" case study. All scores below are computed live in your browser from the data shown, not hardcoded.
+    </div>
+  </aside>
+
+  <main>
+
+    <!-- PORTFOLIO VIEW -->
+    <section class="view" id="view-portfolio">
+      <div class="pagehead">
+        <div>
+          <h1>Account portfolio</h1>
+          <p id="portfolioSub">Synthetic accounts, scored by the phase one heuristic: usage decline, conversation sentiment, feature adoption, and renewal proximity.</p>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="badge-live"><i></i>Live computed</span>
+          <button class="btn primary" id="btnAddAccount" style="flex:none;">+ Add account</button>
+        </div>
+      </div>
+
+      <div class="stats" id="statTiles"></div>
+
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th>Account</th><th>Risk score</th><th>Ticket on file</th><th>Gate</th><th>Suggested action</th><th></th></tr>
+          </thead>
+          <tbody id="acctTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SIMULATOR VIEW -->
+    <section class="view" id="view-simulator" hidden>
+      <div class="pagehead">
+        <div>
+          <h1>Risk simulator</h1>
+          <p>Move the inputs to see the same scoring function reason about a hypothetical account, in real time.</p>
+        </div>
+      </div>
+
+      <div class="sim-grid">
+        <div class="sim-card">
+          <div class="slider-row">
+            <div class="top"><label for="s-usage">Weekly active seats, change over 3 weeks</label><span class="val" id="v-usage">−20%</span></div>
+            <input type="range" id="s-usage" min="-60" max="15" value="-20">
+          </div>
+          <div class="slider-row">
+            <div class="top"><label for="s-sentiment">Average sentiment, last 5 conversations</label><span class="val" id="v-sentiment">0.00</span></div>
+            <input type="range" id="s-sentiment" min="-100" max="100" value="0">
+          </div>
+          <div class="slider-row">
+            <div class="top"><label for="s-adoption">Key feature adoption</label><span class="val" id="v-adoption">50%</span></div>
+            <input type="range" id="s-adoption" min="0" max="100" value="50">
+          </div>
+          <div class="slider-row">
+            <div class="top"><label for="s-renewal">Days to renewal</label><span class="val" id="v-renewal">120</span></div>
+            <input type="range" id="s-renewal" min="5" max="360" value="120">
+          </div>
+          <div class="toggle-row">
+            <label for="s-ticket">Customer has filed a support ticket about this</label>
+            <span class="switch"><input type="checkbox" id="s-ticket"><span class="track"></span><span class="knob"></span></span>
+          </div>
+        </div>
+
+        <div class="result-card" id="simResult"></div>
+      </div>
+    </section>
+
+    <!-- MODEL PERFORMANCE VIEW -->
+    <section class="view" id="view-model" hidden>
+      <div class="pagehead">
+        <div>
+          <h1>Model performance</h1>
+          <p>Computed against this simulated portfolio's built in outcomes, to illustrate the evaluation methodology from the case study, not a claim about real world accuracy.</p>
+        </div>
+      </div>
+
+      <div class="metric-grid" id="metricGrid"></div>
+
+      <div class="bars" id="riskBars"></div>
+
+      <div class="callout" id="honestyCallout"></div>
+
+      <div class="foot-disclaimer">Ground truth outcomes and all account data on this page are synthetic, authored for this demo. Precision and recall are computed live from the formulas below against those built in outcomes. Two accounts, Meridian Ops and Wrenfield, are deliberately included as missed cases (real churn, low computed score) to show a genuine limitation of weighting usage decline above sentiment, discussed on the reflection page of the full case study.</div>
+    </section>
+
+  </main>
+</div>
+
+<div class="overlay" id="overlay" hidden></div>
+<aside class="detail-panel" id="detailPanel" hidden></aside>
+
+<script>
+/* ============================================================
+   DATA: synthetic account portfolio
+   ============================================================ */
+const ACCOUNTS = [
+  {id:1, name:"Northwind Analytics", industry:"Data infrastructure", seats:64, usageTrend:-48, sentiment:-0.55, adoption:22, renewal:18, ticketFiled:false, churned:true},
+  {id:2, name:"Fernbridge Robotics", industry:"Industrial automation", seats:41, usageTrend:-5, sentiment:0.40, adoption:78, renewal:210, ticketFiled:true, churned:false},
+  {id:3, name:"Cobalt Metrics", industry:"Analytics", seats:88, usageTrend:-35, sentiment:-0.20, adoption:40, renewal:45, ticketFiled:false, churned:true},
+  {id:4, name:"Loomstack", industry:"Developer tools", seats:120, usageTrend:8, sentiment:0.50, adoption:85, renewal:300, ticketFiled:true, churned:false},
+  {id:5, name:"Aurorasoft", industry:"Marketing platform", seats:53, usageTrend:-52, sentiment:-0.70, adoption:15, renewal:9, ticketFiled:false, churned:true},
+  {id:6, name:"Kettlewell Data", industry:"Analytics", seats:34, usageTrend:-12, sentiment:0.10, adoption:55, renewal:150, ticketFiled:true, churned:false},
+  {id:7, name:"Vanterra", industry:"Logistics software", seats:97, usageTrend:-40, sentiment:-0.40, adoption:30, renewal:25, ticketFiled:true, churned:true},
+  {id:8, name:"Brightloop", industry:"HR platform", seats:29, usageTrend:-28, sentiment:-0.30, adoption:45, renewal:60, ticketFiled:false, churned:false},
+  {id:9, name:"Sable and Finch", industry:"Legal tech", seats:22, usageTrend:-3, sentiment:0.60, adoption:90, renewal:400, ticketFiled:true, churned:false},
+  {id:10, name:"Quillhaven", industry:"Content ops", seats:47, usageTrend:-45, sentiment:-0.60, adoption:20, renewal:30, ticketFiled:false, churned:true},
+  {id:11, name:"Meridian Ops", industry:"Supply chain", seats:76, usageTrend:2, sentiment:-0.65, adoption:60, renewal:100, ticketFiled:false, churned:true},
+  {id:12, name:"Foxglove Systems", industry:"Fintech infra", seats:58, usageTrend:-20, sentiment:0.20, adoption:50, renewal:80, ticketFiled:true, churned:false},
+  {id:13, name:"Harborlight AI", industry:"Support automation", seats:39, usageTrend:-60, sentiment:-0.80, adoption:10, renewal:12, ticketFiled:false, churned:true},
+  {id:14, name:"Tindercore", industry:"Product analytics", seats:31, usageTrend:-15, sentiment:-0.10, adoption:65, renewal:200, ticketFiled:false, churned:false},
+  {id:15, name:"Palisade Works", industry:"Construction tech", seats:44, usageTrend:-33, sentiment:-0.35, adoption:38, renewal:15, ticketFiled:false, churned:false},
+  {id:16, name:"Driftwood Analytics", industry:"Data infrastructure", seats:67, usageTrend:-8, sentiment:0.30, adoption:70, renewal:250, ticketFiled:true, churned:false},
+  {id:17, name:"Cinderhall", industry:"E commerce ops", seats:52, usageTrend:-50, sentiment:-0.50, adoption:25, renewal:40, ticketFiled:false, churned:true},
+  {id:18, name:"Wrenfield", industry:"Field services", seats:36, usageTrend:5, sentiment:-0.55, adoption:55, renewal:120, ticketFiled:false, churned:true},
+  {id:19, name:"Amberlane Tech", industry:"Marketing platform", seats:63, usageTrend:-18, sentiment:0.15, adoption:60, renewal:90, ticketFiled:true, churned:false},
+  {id:20, name:"Thistledown", industry:"Analytics", seats:49, usageTrend:-44, sentiment:-0.45, adoption:28, renewal:20, ticketFiled:false, churned:true},
+];
+
+const state = { actioned:{}, selectedId:null };
+
+/* ============================================================
+   MODEL: the phase one heuristic, from the case study
+   ============================================================ */
+function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
+
+function computeRisk(a){
+  const usageRisk = clamp(-a.usageTrend*2, 0, 100);
+  const sentimentRisk = clamp((0.5 - a.sentiment)*100, 0, 100);
+  const adoptionRisk = clamp((60 - a.adoption), 0, 60)/60*100;
+  const renewalUrgency = clamp((90 - a.renewal)/90, 0, 1)*100;
+
+  const wUsage=0.45, wSent=0.30, wAdopt=0.15, wRenew=0.10;
+  const score = Math.round(usageRisk*wUsage + sentimentRisk*wSent + adoptionRisk*wAdopt + renewalUrgency*wRenew);
+
+  const triggered = [usageRisk>50, sentimentRisk>50, adoptionRisk>50].filter(Boolean).length;
+  const confidence = clamp(55 + triggered*13, 55, 95);
+
+  const tier = score>=70 ? 'high' : score>=40 ? 'med' : 'low';
+  const silent = !a.ticketFiled && score>=40;
+
+  const contributions = [
+    {key:'usage', weight:usageRisk*wUsage, label:`Weekly active seats ${a.usageTrend<0?'down '+Math.abs(a.usageTrend)+'%':'up '+a.usageTrend+'%'} over the last 3 weeks`},
+    {key:'sentiment', weight:sentimentRisk*wSent, label:`Average conversation sentiment at ${a.sentiment.toFixed(2)}, ${a.sentiment<0?'trending negative':'holding positive'}`},
+    {key:'adoption', weight:adoptionRisk*wAdopt, label:`Only ${a.adoption}% of key features activated`},
+    {key:'renewal', weight:renewalUrgency*wRenew, label:`Renewal in ${a.renewal} days`},
+  ].sort((x,y)=>y.weight-x.weight);
+
+  const topSignals = contributions.filter(c=>c.weight>3).slice(0,3);
+  if(topSignals.length===0) topSignals.push({key:'none', weight:0, label:'No signal currently crosses the concern threshold'});
+
+  const dominant = contributions[0].key;
+  let action, friction;
+  if(score>=85){ action="Escalate to CSM immediately with a full account summary attached."; friction='high'; }
+  else if(dominant==='sentiment'){ action="Flag for CSM personal outreach, referencing the specific recent conversations."; friction='high'; }
+  else if(dominant==='usage'){ action="Send an automated re engagement email highlighting the underused, high value features."; friction='low'; }
+  else if(dominant==='adoption'){ action="Trigger an in app walkthrough for the most impactful unused feature."; friction='low'; }
+  else { action="Log for the next quarterly business review, no action needed yet."; friction='low'; }
+
+  const gate = (confidence>=80 && friction==='low') ? 'auto' : 'review';
+
+  return {score, tier, silent, usageRisk, sentimentRisk, adoptionRisk, renewalUrgency, confidence, topSignals, action, friction, gate, contributions};
+}
+
+function tierColor(tier){ return tier==='high'?'var(--risk-high)':tier==='med'?'var(--risk-med)':'var(--risk-low)'; }
+function fmtSigned(n){ return (n>0?'+':'') + n + '%'; }
+
+/* ============================================================
+   RENDER: portfolio table + stat tiles
+   ============================================================ */
+function renderPortfolio(){
+  const scored = ACCOUNTS.map(a=>({a, r:computeRisk(a)}));
+  const highCount = scored.filter(x=>x.r.tier==='high').length;
+  const silentCount = scored.filter(x=>x.r.silent).length;
+  const autoCount = scored.filter(x=>x.r.gate==='auto').length;
+
+  document.getElementById('portfolioSub').textContent =
+    `${ACCOUNTS.length} accounts, scored live by the phase one heuristic: usage decline, conversation sentiment, feature adoption, and renewal proximity. Click a row to open it, or edit any account's inputs directly.`;
+
+  document.getElementById('statTiles').innerHTML = `
+    <div class="stat-tile"><div class="v mono">${ACCOUNTS.length}</div><div class="l">Accounts monitored</div></div>
+    <div class="stat-tile warn"><div class="v mono">${highCount}</div><div class="l">Flagged high risk</div></div>
+    <div class="stat-tile warn"><div class="v mono">${silentCount}</div><div class="l">At risk with zero support ticket on file</div></div>
+    <div class="stat-tile ok"><div class="v mono">${autoCount}</div><div class="l">Eligible for automatic action</div></div>
+  `;
+
+  const rows = scored.sort((x,y)=>y.r.score-x.r.score).map(({a,r})=>{
+    const done = state.actioned[a.id];
+    return `
+    <tr data-id="${a.id}" class="${state.selectedId===a.id?'selected':''}">
+      <td>
+        <div class="acct-name">${a.name}</div>
+        <div class="acct-sub">${a.industry} &middot; ${a.seats} seats</div>
+      </td>
+      <td>
+        <div class="score-cell">
+          <span class="n mono">${r.score}</span>
+          <span class="score-track"><span class="score-fill" style="width:${r.score}%; background:${tierColor(r.tier)}"></span></span>
+        </div>
+      </td>
+      <td>${a.ticketFiled ? '<span class="pill ghost">Ticket on file</span>' : (r.silent ? '<span class="pill silent">Silent, no ticket</span>' : '<span class="pill ghost">No ticket</span>')}</td>
+      <td>${r.gate==='auto' ? '<span class="pill auto">Auto eligible</span>' : '<span class="pill review">Needs review</span>'}</td>
+      <td style="color:var(--ink-soft); font-size:12.3px;">${done ? '<span class="pill low">'+(done==='approved'?'Action sent':'Dismissed')+'</span>' : r.action}</td>
+      <td><button class="row-edit" data-edit-id="${a.id}" aria-label="Edit ${a.name}" title="Edit this account">Edit</button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('acctTableBody').innerHTML = rows;
+
+  document.querySelectorAll('#acctTableBody tr').forEach(tr=>{
+    tr.addEventListener('click', (e)=>{
+      if(e.target.closest('.row-edit')) return;
+      openDetail(parseInt(tr.dataset.id));
+    });
+  });
+  document.querySelectorAll('.row-edit').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openEdit(parseInt(btn.dataset.editId));
+    });
+  });
+}
+
+/* ============================================================
+   RENDER: detail panel (the alert card)
+   ============================================================ */
+function sparkPath(a, w, h){
+  // build an 8 point synthetic weekly series consistent with usageTrend
+  const start = 100;
+  const end = clamp(100 + a.usageTrend, 15, 130);
+  const pts = [];
+  for(let i=0;i<8;i++){
+    const t = i/7;
+    const noise = Math.sin(i*1.7 + a.id)*3;
+    pts.push(start + (end-start)*t + noise);
+  }
+  const min = Math.min(...pts), max = Math.max(...pts);
+  const coords = pts.map((v,i)=>{
+    const x = (i/(pts.length-1))*w;
+    const y = h - ((v-min)/(max-min||1))*h;
+    return [x,y];
+  });
+  const d = coords.map((c,i)=> (i===0?'M':'L')+c[0].toFixed(1)+','+c[1].toFixed(1)).join(' ');
+  const last = coords[coords.length-1];
+  return {d, last, coords};
+}
+
+function openDetail(id){
+  state.selectedId = id;
+  const a = ACCOUNTS.find(x=>x.id===id);
+  const r = computeRisk(a);
+  const sp = sparkPath(a, 340, 46);
+  const areaD = sp.d + ` L${sp.coords[sp.coords.length-1][0]},46 L0,46 Z`;
+
+  const panel = document.getElementById('detailPanel');
+  panel.innerHTML = `
+    <div class="dp-head">
+      <div>
+        <h2>${a.name}</h2>
+        <div class="acct-sub">${a.industry} &middot; ${a.seats} seats &middot; renews in ${a.renewal} days</div>
+      </div>
+      <div style="display:flex; gap:4px; flex:none;">
+        <button class="close" id="dpEdit" aria-label="Edit ${a.name}" title="Edit this account" style="font-size:12px;">Edit</button>
+        <button class="close" id="dpClose" aria-label="Close">&times;</button>
+      </div>
+    </div>
+    <div class="dp-body">
+      <div class="dp-score">
+        <svg width="64" height="64" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="27" fill="none" stroke="var(--surface-2)" stroke-width="7"/>
+          <circle cx="32" cy="32" r="27" fill="none" stroke="${tierColor(r.tier)}" stroke-width="7"
+            stroke-dasharray="${2*Math.PI*27}" stroke-dashoffset="${2*Math.PI*27*(1-r.score/100)}"
+            stroke-linecap="round" transform="rotate(-90 32 32)"/>
+          <text x="32" y="37" text-anchor="middle" font-family="IBM Plex Mono" font-weight="700" font-size="16" fill="var(--ink)">${r.score}</text>
+        </svg>
+        <div>
+          <span class="pill ${r.tier}">${r.tier==='high'?'High risk':r.tier==='med'?'Medium risk':'Low risk'}</span>
+          ${r.silent ? '<span class="pill silent" style="margin-left:6px;">Silent, no ticket</span>' : ''}
+          <div class="gatepill" style="margin-top:7px;">
+            <span class="pill ${r.gate==='auto'?'auto':'review'}">${r.gate==='auto'?'Eligible to act automatically':'Requires human approval'}</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="dp-section-label">Why this account is flagged</div>
+        <ul class="sig-list">
+          ${r.topSignals.map(s=>`<li><span class="w mono">${s.weight>0? '+'+Math.round(s.weight): ''}</span><span>${s.label}</span></li>`).join('')}
+        </ul>
+      </div>
+
+      <div>
+        <div class="dp-section-label">Weekly active seats, last 8 weeks</div>
+        <div class="spark-wrap">
+          <svg width="340" height="46" viewBox="0 0 340 46" preserveAspectRatio="none" style="width:100%; height:46px; display:block;">
+            <path d="${areaD}" fill="var(--accent)" opacity="0.14"/>
+            <path d="${sp.d}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+            <circle cx="${sp.last[0]}" cy="${sp.last[1]}" r="3" fill="var(--accent-deep)"/>
+          </svg>
+          <div class="cap">Trend over last 3 weeks: ${fmtSigned(a.usageTrend)}</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="dp-section-label">Suggested action &middot; confidence ${r.confidence}%</div>
+        <div class="suggest-box" style="margin-top:6px;"><p>${r.action}</p></div>
+      </div>
+
+      <div class="gate-note">${r.gate==='auto'
+        ? `Fires automatically: confidence is ${r.confidence}% and this is a low friction, reversible action.`
+        : `Held for review: ${r.confidence<80 ? 'confidence is only '+r.confidence+'%.' : 'this action carries real cost or is customer facing, so it always needs a human, regardless of confidence.'}`}</div>
+    </div>
+    <div class="dp-actions">
+      <button class="btn primary" id="dpApprove">${r.gate==='auto' ? 'Confirm and send' : 'Approve and send'}</button>
+      <button class="btn ghost" id="dpDismiss">Dismiss</button>
+    </div>
+  `;
+  document.getElementById('overlay').hidden = false;
+  panel.hidden = false;
+  document.getElementById('dpClose').onclick = closeDetail;
+  document.getElementById('dpEdit').onclick = ()=> openEdit(id);
+  document.getElementById('overlay').onclick = closeDetail;
+  document.getElementById('dpApprove').onclick = ()=>{ state.actioned[id]='approved'; closeDetail(); renderPortfolio(); };
+  document.getElementById('dpDismiss').onclick = ()=>{ state.actioned[id]='dismissed'; closeDetail(); renderPortfolio(); };
+  renderPortfolio();
+}
+function closeDetail(){
+  document.getElementById('overlay').hidden = true;
+  document.getElementById('detailPanel').hidden = true;
+  state.selectedId = null;
+}
+
+/* ============================================================
+   EDIT / ADD: a reusable account form, live scoring as you type
+   ============================================================ */
+function fieldRow(label, inputHtml, valId, initialText){
+  return `<div class="slider-row">
+    <div class="top"><label>${label}</label><span class="val" id="${valId}">${initialText}</span></div>
+    ${inputHtml}
+  </div>`;
+}
+
+function renderEditForm(a){
+  return `
+    <div class="dp-body">
+      <div class="slider-row">
+        <div class="top"><label for="ef-name">Account name</label></div>
+        <input type="text" id="ef-name" value="${a.name}" class="ef-text">
+      </div>
+      <div style="display:flex; gap:10px;">
+        <div class="slider-row" style="flex:1;">
+          <div class="top"><label for="ef-industry">Industry</label></div>
+          <input type="text" id="ef-industry" value="${a.industry}" class="ef-text">
+        </div>
+        <div class="slider-row" style="width:90px;">
+          <div class="top"><label for="ef-seats">Seats</label></div>
+          <input type="number" id="ef-seats" value="${a.seats}" min="1" class="ef-text">
+        </div>
+      </div>
+
+      ${fieldRow('Weekly active seats, change over 3 weeks', `<input type="range" id="ef-usage" min="-60" max="15" value="${a.usageTrend}">`, 'efv-usage', fmtSigned(a.usageTrend))}
+      ${fieldRow('Average sentiment, last 5 conversations', `<input type="range" id="ef-sentiment" min="-100" max="100" value="${Math.round(a.sentiment*100)}">`, 'efv-sentiment', a.sentiment.toFixed(2))}
+      ${fieldRow('Key feature adoption', `<input type="range" id="ef-adoption" min="0" max="100" value="${a.adoption}">`, 'efv-adoption', a.adoption+'%')}
+      ${fieldRow('Days to renewal', `<input type="range" id="ef-renewal" min="5" max="360" value="${a.renewal}">`, 'efv-renewal', a.renewal)}
+
+      <div class="toggle-row">
+        <label for="ef-ticket">Customer has filed a support ticket about this</label>
+        <span class="switch"><input type="checkbox" id="ef-ticket" ${a.ticketFiled?'checked':''}><span class="track"></span><span class="knob"></span></span>
+      </div>
+
+      <div class="dp-section-label" style="margin-top:4px;">Live preview</div>
+      <div id="efPreview"></div>
+    </div>
+  `;
+}
+
+function readEditForm(){
+  return {
+    name: document.getElementById('ef-name').value.trim() || 'Untitled account',
+    industry: document.getElementById('ef-industry').value.trim() || 'Unspecified',
+    seats: Math.max(1, parseInt(document.getElementById('ef-seats').value) || 1),
+    usageTrend: parseInt(document.getElementById('ef-usage').value),
+    sentiment: parseInt(document.getElementById('ef-sentiment').value)/100,
+    adoption: parseInt(document.getElementById('ef-adoption').value),
+    renewal: parseInt(document.getElementById('ef-renewal').value),
+    ticketFiled: document.getElementById('ef-ticket').checked,
+  };
+}
+
+function refreshEditPreview(){
+  document.getElementById('efv-usage').textContent = fmtSigned(parseInt(document.getElementById('ef-usage').value));
+  document.getElementById('efv-sentiment').textContent = (parseInt(document.getElementById('ef-sentiment').value)/100).toFixed(2);
+  document.getElementById('efv-adoption').textContent = document.getElementById('ef-adoption').value+'%';
+  document.getElementById('efv-renewal').textContent = document.getElementById('ef-renewal').value;
+
+  const draft = readEditForm();
+  const r = computeRisk(draft);
+  document.getElementById('efPreview').innerHTML = `
+    <div class="suggest-box">
+      <div class="lbl">Computed score ${r.score}, ${r.tier} risk &middot; ${r.gate==='auto'?'auto eligible':'needs review'}</div>
+      <p>${r.action}</p>
+    </div>
+  `;
+}
+
+function wireEditForm(){
+  ['ef-usage','ef-sentiment','ef-adoption','ef-renewal','ef-ticket'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', refreshEditPreview);
+  });
+  refreshEditPreview();
+}
+
+function openEdit(id){
+  state.selectedId = id;
+  const a = ACCOUNTS.find(x=>x.id===id);
+  const panel = document.getElementById('detailPanel');
+  panel.innerHTML = `
+    <div class="dp-head">
+      <div><h2>Edit account</h2><div class="acct-sub">${a.name}</div></div>
+      <button class="close" id="dpClose" aria-label="Close">&times;</button>
+    </div>
+    ${renderEditForm(a)}
+    <div class="dp-actions">
+      <button class="btn primary" id="dpSave">Save changes</button>
+      <button class="btn ghost" id="dpCancel">Cancel</button>
+      <button class="btn danger" id="dpDelete" style="flex:none;">Delete</button>
+    </div>
+  `;
+  document.getElementById('overlay').hidden = false;
+  panel.hidden = false;
+  wireEditForm();
+  document.getElementById('dpClose').onclick = closeDetail;
+  document.getElementById('overlay').onclick = closeDetail;
+  document.getElementById('dpCancel').onclick = closeDetail;
+  document.getElementById('dpSave').onclick = ()=>{
+    Object.assign(a, readEditForm());
+    saveAccounts();
+    closeDetail();
+    renderPortfolio();
+  };
+  document.getElementById('dpDelete').onclick = ()=>{
+    const idx = ACCOUNTS.findIndex(x=>x.id===id);
+    if(idx>-1) ACCOUNTS.splice(idx,1);
+    delete state.actioned[id];
+    saveAccounts();
+    closeDetail();
+    renderPortfolio();
+  };
+}
+
+function openNewAccount(){
+  const blank = {id: Date.now(), name:'New account', industry:'Unspecified', seats:20, usageTrend:-10, sentiment:0, adoption:50, renewal:120, ticketFiled:false, churned:false};
+  const panel = document.getElementById('detailPanel');
+  panel.innerHTML = `
+    <div class="dp-head">
+      <div><h2>Add account</h2><div class="acct-sub">Fill in what you know, the score updates as you go</div></div>
+      <button class="close" id="dpClose" aria-label="Close">&times;</button>
+    </div>
+    ${renderEditForm(blank)}
+    <div class="dp-actions">
+      <button class="btn primary" id="dpCreate">Create account</button>
+      <button class="btn ghost" id="dpCancel">Cancel</button>
+    </div>
+  `;
+  document.getElementById('overlay').hidden = false;
+  panel.hidden = false;
+  wireEditForm();
+  document.getElementById('dpClose').onclick = closeDetail;
+  document.getElementById('overlay').onclick = closeDetail;
+  document.getElementById('dpCancel').onclick = closeDetail;
+  document.getElementById('dpCreate').onclick = ()=>{
+    const data = readEditForm();
+    ACCOUNTS.push(Object.assign({id: blank.id, churned:false}, data));
+    saveAccounts();
+    closeDetail();
+    renderPortfolio();
+  };
+}
+
+function saveAccounts(){
+  try{ localStorage.setItem('scc_accounts', JSON.stringify(ACCOUNTS)); }catch(e){ /* private mode or blocked, edits still work this session */ }
+}
+function loadAccounts(){
+  try{
+    const raw = localStorage.getItem('scc_accounts');
+    if(raw){ const parsed = JSON.parse(raw); if(Array.isArray(parsed) && parsed.length) return parsed; }
+  }catch(e){ /* ignore */ }
+  return null;
+}
+
+/* ============================================================
+   RENDER: simulator
+   ============================================================ */
+function renderSimulator(){
+  const usage = parseInt(document.getElementById('s-usage').value);
+  const sentiment = parseInt(document.getElementById('s-sentiment').value)/100;
+  const adoption = parseInt(document.getElementById('s-adoption').value);
+  const renewal = parseInt(document.getElementById('s-renewal').value);
+  const ticketFiled = document.getElementById('s-ticket').checked;
+
+  document.getElementById('v-usage').textContent = fmtSigned(usage);
+  document.getElementById('v-sentiment').textContent = sentiment.toFixed(2);
+  document.getElementById('v-adoption').textContent = adoption+'%';
+  document.getElementById('v-renewal').textContent = renewal;
+
+  const a = {id:999, usageTrend:usage, sentiment, adoption, renewal, ticketFiled};
+  const r = computeRisk(a);
+
+  document.getElementById('simResult').innerHTML = `
+    <div class="rlabel">Computed risk score</div>
+    <div class="rscore mono">${r.score}</div>
+    <div class="rpills">
+      <span class="pill ${r.tier}">${r.tier==='high'?'High risk':r.tier==='med'?'Medium risk':'Low risk'}</span>
+      ${r.silent ? '<span class="pill silent">Silent, no ticket</span>' : ''}
+      <span class="pill ${r.gate==='auto'?'auto':'review'}">${r.gate==='auto'?'Auto eligible':'Needs review'}</span>
+    </div>
+    <div class="dp-section-label" style="color:#9fb097;">Why</div>
+    <ul class="sig-list" style="margin-top:6px; margin-bottom:14px;">
+      ${r.topSignals.map(s=>`<li><span class="w mono">${s.weight>0? '+'+Math.round(s.weight): ''}</span><span>${s.label}</span></li>`).join('')}
+    </ul>
+    <div class="suggest-box"><div class="lbl">Suggested action &middot; ${r.confidence}% confidence</div><p>${r.action}</p></div>
+  `;
+}
+
+/* ============================================================
+   RENDER: model performance
+   ============================================================ */
+function renderModel(){
+  const scored = ACCOUNTS.map(a=>({a, r:computeRisk(a)}));
+  const flagged = scored.filter(x=>x.r.score>=60);
+  const truePos = flagged.filter(x=>x.a.churned).length;
+  const precision = flagged.length ? Math.round(100*truePos/flagged.length) : 0;
+  const actualChurn = scored.filter(x=>x.a.churned).length;
+  const recall = actualChurn ? Math.round(100*truePos/actualChurn) : 0;
+  const silentTruePos = scored.filter(x=>x.r.silent && x.a.churned).length;
+  const totalSilentRisk = scored.filter(x=>x.r.silent).length;
+
+  document.getElementById('metricGrid').innerHTML = `
+    <div class="metric-card"><div class="v mono">${precision}%</div><div class="l">Precision at score 60+</div><div class="d">Of accounts flagged at risk, the share that actually churned in this simulated portfolio.</div></div>
+    <div class="metric-card"><div class="v mono">${recall}%</div><div class="l">Recall against known churn</div><div class="d">Of accounts that actually churned, the share the model flagged in time.</div></div>
+    <div class="metric-card"><div class="v mono">${totalSilentRisk?Math.round(100*silentTruePos/totalSilentRisk):0}%</div><div class="l">Silent accounts confirmed at risk</div><div class="d">Of accounts flagged with zero ticket on file, the share that were a real churn case.</div></div>
+  `;
+
+  const bands = [
+    {label:'High, 70+', tier:'high', color:'var(--risk-high)'},
+    {label:'Medium, 40 to 69', tier:'med', color:'var(--risk-med)'},
+    {label:'Low, under 40', tier:'low', color:'var(--risk-low)'},
+  ];
+  const max = ACCOUNTS.length;
+  document.getElementById('riskBars').innerHTML = `<div class="dp-section-label" style="margin-bottom:12px;">Portfolio distribution by risk tier</div>` + bands.map(b=>{
+    const n = scored.filter(x=>x.r.tier===b.tier).length;
+    return `<div class="bar-row"><div class="lbl">${b.label}</div><div class="track"><div class="fill" style="width:${(n/max*100)}%; background:${b.color}"></div></div><div class="n mono">${n}</div></div>`;
+  }).join('');
+
+  document.getElementById('honestyCallout').innerHTML = `<b>Where the model misses:</b> two accounts, Meridian Ops and Wrenfield, churned with stable or growing usage but sharply negative conversation sentiment. Because this formula weights usage decline at 0.45 and sentiment at only 0.30, a sentiment only signal can never push a score past about 30, so both were scored low and missed. That is a real limitation of this specific weighting, not a data problem, and exactly the kind of thing the assumptions table in the full case study is meant to catch before it reaches a real customer.`;
+}
+
+/* ============================================================
+   WIRE UP
+   ============================================================ */
+document.querySelectorAll('.nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.hidden=true);
+    document.getElementById('view-'+btn.dataset.view).hidden=false;
+    if(btn.dataset.view==='simulator') renderSimulator();
+    if(btn.dataset.view==='model') renderModel();
+  });
+});
+
+['s-usage','s-sentiment','s-adoption','s-renewal','s-ticket'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', renderSimulator);
+});
+
+document.getElementById('btnAddAccount').addEventListener('click', openNewAccount);
+
+const restored = loadAccounts();
+if(restored){ ACCOUNTS.length = 0; restored.forEach(x=>ACCOUNTS.push(x)); }
+
+renderPortfolio();
+</script>
+</body>
+</html>
